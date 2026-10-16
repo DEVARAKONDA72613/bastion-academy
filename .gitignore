@@ -1,0 +1,25 @@
+# Bastion Academy local-only files
+**/.env
+**/.env.*
+!**/.env.example
+!**/.env.*.example
+**/node_modules/
+**/.next/
+**/dist/
+**/coverage/
+**/.turbo/
+**/.vercel/
+**/.wrangler/
+**/.dev.vars
+*.log
+*.zip
+
+# Local dependency-upgrade backups
+*.pre-audit-overrides
+*.pre-security-upgrade
+
+# Unrelated files in the workspace root
+/AppShell.tsx
+/List of Experiment.docx
+/image.png
+/public/

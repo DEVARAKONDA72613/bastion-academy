@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Bastion Academy</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --primary:#3FBF8F; --secondary:#8FA8C9; --accent:#F2A93C;
+  --bg:#0D1210; --surface:#151B18; --elevated:#1C2420;
+  --success:#4ADE94; --warning:#E0B23C; --error:#F2867D; --info:#7FB3EF;
+  --text:#E9EFEC; --text-dim:#8FA096; --border:#28322D;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+  box-sizing:border-box;
+}
+:root[data-theme="light"]{
+  --primary:#0B3D2E; --secondary:#1E2A3A; --accent:#D98E04;
+  --bg:#F7F8F6; --surface:#FFFFFF; --elevated:#FFFFFF;
+  --success:#1E8E5A; --warning:#B8860B; --error:#B3261E; --info:#2B6CB0;
+  --text:#12211B; --text-dim:#5B6B63; --border:#E1E6E2;
+}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--text);height:100%;transition:background .2s,color .2s}
+.mono{font-family:'IBM Plex Mono',monospace}
+button{font-family:inherit;cursor:pointer}
+a{color:inherit}
+
+/* shell */
+.shell{display:flex;min-height:100vh}
+.rail{width:72px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;align-items:center;padding:20px 0;gap:6px;flex-shrink:0}
+.rail-logo{width:36px;height:36px;border-radius:8px;background:var(--primary);color:var(--bg);display:flex;align-items:center;justify-content:center;font-weight:700;margin-bottom:24px}
+.rail button{width:48px;height:48px;border:none;background:none;color:var(--text-dim);border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:10px;gap:4px}
+.rail button.active{background:var(--elevated);color:var(--primary)}
+.rail svg{width:20px;height:20px}
+.main{flex:1;min-width:0}
+.topbar{height:60px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 24px}
+.theme-toggle{background:var(--elevated);border:1px solid var(--border);color:var(--text-dim);padding:6px 12px;border-radius:6px;font-size:13px}
+.view{display:none;padding:32px;max-width:1100px}
+.view.active{display:block}
+.container-full{max-width:none}
+
+/* typography */
+h1{font-size:32px;margin:0 0 8px;font-weight:700;letter-spacing:-.01em}
+h2{font-size:24px;margin:0 0 6px;font-weight:600}
+h3{font-size:16px;margin:0 0 4px;font-weight:600}
+p{color:var(--text-dim);line-height:1.5;margin:0 0 16px;max-width:65ch}
+.stat{font-family:'IBM Plex Mono',monospace;font-weight:600}
+
+/* components */
+.btn{padding:10px 18px;border-radius:6px;border:1px solid transparent;font-size:14px;font-weight:500}
+.btn-primary{background:var(--primary);color:var(--bg)}
+.btn-ghost{background:var(--elevated);color:var(--text);border-color:var(--border)}
+.card{background:var(--elevated);border:1px solid var(--border);border-radius:6px;padding:20px}
+.badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-family:'IBM Plex Mono',monospace}
+.badge-live{background:rgba(242,169,63,.15);color:var(--accent)}
+.grid{display:grid;gap:16px}
+.grid-3{grid-template-columns:repeat(3,1fr)}
+.grid-2{grid-template-columns:2fr 1fr}
+@media(max-width:800px){.grid-3,.grid-2{grid-template-columns:1fr}}
+
+/* landing */
+.hero{padding:64px 0 48px;border-bottom:1px solid var(--border);margin-bottom:32px}
+.hero h1{font-size:44px;max-width:14ch}
+.pricing-table{width:100%;border-collapse:collapse}
+.pricing-table th,.pricing-table td{text-align:left;padding:12px 16px;border-bottom:1px solid var(--border);font-size:14px}
+.pricing-table th{color:var(--text-dim);font-weight:500}
+.plan-col{background:var(--elevated);border-radius:6px}
+
+/* watch page */
+.player{aspect-ratio:16/9;background:#000;border-radius:6px;display:flex;align-items:center;justify-content:center;color:var(--text-dim);position:relative;margin-bottom:16px}
+.player-controls{position:absolute;bottom:0;left:0;right:0;padding:12px 16px;background:linear-gradient(transparent,rgba(0,0,0,.7));display:flex;align-items:center;gap:12px;color:#fff;font-size:13px}
+.progress-bar{flex:1;height:4px;background:rgba(255,255,255,.25);border-radius:2px;position:relative}
+.progress-bar span{position:absolute;left:0;top:0;bottom:0;width:34%;background:var(--primary);border-radius:2px}
+
+/* live room */
+.room-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.tile{aspect-ratio:4/3;background:var(--elevated);border-radius:6px;border:1px solid var(--border);display:flex;align-items:end;justify-content:space-between;padding:8px;font-size:12px;position:relative}
+.tile.speaking{border-color:var(--primary)}
+.mic-off{color:var(--error)}
+.controls-bar{display:flex;justify-content:center;gap:10px;margin-top:16px;padding:12px;background:var(--surface);border-radius:6px}
+.ctrl{width:44px;height:44px;border-radius:8px;background:var(--elevated);border:1px solid var(--border);color:var(--text);display:flex;align-items:center;justify-content:center;font-size:16px}
+.ctrl.danger{background:var(--error);color:#fff;border-color:var(--error)}
+</style>
+</head>
+<body>
+<div class="shell">
+  <nav class="rail">
+    <div class="rail-logo">B</div>
+    <button class="active" data-view="landing">Home</button>
+    <button data-view="dashboard">Learn</button>
+    <button data-view="watch">Watch</button>
+    <button data-view="live">Live</button>
+    <button data-view="pricing">Plans</button>
+  </nav>
+  <div class="main">
+    <div class="topbar">
+      <span class="mono" style="font-size:13px;color:var(--text-dim)">bastion.academy</span>
+      <button class="theme-toggle" onclick="toggleTheme()">Toggle theme</button>
+    </div>
+
+    <section class="view active" id="landing">
+      <div class="hero">
+        <h1>Where defenders are trained, not just certified.</h1>
+        <p>Bastion Academy pairs cert-track video courses with live red/blue-team drills and a practitioner community — plus offline Field Packs for study on the road.</p>
+        <button class="btn btn-primary">Start free</button>
+        <button class="btn btn-ghost" style="margin-left:8px">Explore tracks</button>
+      </div>
+      <div class="grid grid-3">
+        <div class="card"><h3 class="mono">12,400+</h3><p>practitioners training weekly</p></div>
+        <div class="card"><h3 class="mono">3.2k</h3><p>Field Packs downloaded this month</p></div>
+        <div class="card"><h3 class="mono">48</h3><p>live drills run in the last 30 days</p></div>
+      </div>
+    </section>
+
+    <section class="view" id="pricing">
+      <h2>Plans built around where you are in your career</h2>
+      <p>Every plan keeps your progress, downloads, and community history — upgrading only changes what's unlocked.</p>
+      <table class="pricing-table">
+        <tr><th></th><th>Free / Recruit</th><th>Bronze / Operator</th><th>Silver / Specialist</th><th>Gold / Commander</th></tr>
+        <tr><td>Price</td><td class="mono">₹0</td><td class="mono">₹499/mo</td><td class="mono">₹999/mo</td><td class="mono">₹1,999/mo</td></tr>
+        <tr><td>Streaming quality</td><td>720p</td><td>1080p</td><td>1080p</td><td>4K</td></tr>
+        <tr><td>Downloads / day</td><td>1</td><td>5</td><td>15</td><td>Unlimited</td></tr>
+        <tr><td>Live drills</td><td>Observer only</td><td>Join</td><td>Join + host requests</td><td>Join + host</td></tr>
+        <tr><td>Premium tracks</td><td>—</td><td>2 tracks</td><td>All tracks</td><td>All tracks + early access</td></tr>
+      </table>
+    </section>
+
+    <section class="view" id="dashboard">
+      <h1>Good evening, Priya</h1>
+      <p>You're 3 lessons from completing <strong>Cloud Security Fundamentals</strong>.</p>
+      <div class="grid grid-2">
+        <div class="card">
+          <h3>Continue learning</h3>
+          <p>Lesson 7 — IAM Privilege Escalation Paths</p>
+          <div class="progress-bar" style="margin:8px 0 16px"><span style="width:58%"></span></div>
+          <button class="btn btn-primary">Resume</button>
+        </div>
+        <div class="card">
+          <h3>Live this week</h3>
+          <p><span class="badge badge-live">LIVE THU 7PM</span><br>Threat Briefing: CVE-2026-4417 walkthrough</p>
+          <button class="btn btn-ghost">Add to calendar</button>
+        </div>
+      </div>
+      <div class="grid grid-3" style="margin-top:16px">
+        <div class="card"><h3 class="mono">7-day streak</h3><p>Keep it going — one lesson today.</p></div>
+        <div class="card"><h3>Downloads remaining</h3><p class="mono" style="color:var(--text);font-size:20px">4 / 5 today</p></div>
+        <div class="card"><h3>Community</h3><p>2 replies to your question on session hijacking</p></div>
+      </div>
+    </section>
+
+    <section class="view" id="watch">
+      <div class="grid grid-2">
+        <div>
+          <div class="player">1080p — playing
+            <div class="player-controls">
+              <span class="mono">14:22</span>
+              <div class="progress-bar"><span></span></div>
+              <span class="mono">/ 41:10</span>
+              <span>1x</span>
+            </div>
+          </div>
+          <h2>IAM Privilege Escalation Paths</h2>
+          <p>Cloud Security Fundamentals — Lesson 7 of 12 · Instructor: Arjun Mehta</p>
+          <button class="btn btn-primary">Download for offline</button>
+          <button class="btn btn-ghost" style="margin-left:8px">Mark complete</button>
+        </div>
+        <div class="card">
+          <h3>Up next</h3>
+          <p>Lesson 8 — Detecting Lateral Movement</p>
+          <h3>Discussion</h3>
+          <p class="mono" style="font-size:13px">Rohan_K · 2h ago<br><span style="color:var(--text)">Does this apply to GCP IAM bindings too?</span></p>
+        </div>
+      </div>
+    </section>
+
+    <section class="view" id="live">
+      <div class="grid grid-2">
+        <div>
+          <h2>Threat Briefing — CVE-2026-4417 <span class="badge badge-live">LIVE · 12:04</span></h2>
+          <div class="room-grid">
+            <div class="tile speaking"><span>Arjun (Host)</span><span class="mono">HD</span></div>
+            <div class="tile"><span class="mic-off">Priya</span><span class="mono">●●○</span></div>
+            <div class="tile"><span>Rohan</span><span class="mono">●●●</span></div>
+            <div class="tile"><span>+9 more</span></div>
+          </div>
+          <div class="controls-bar">
+            <button class="ctrl">🎤</button>
+            <button class="ctrl">📹</button>
+            <button class="ctrl">🖥️</button>
+            <button class="ctrl">✋</button>
+            <button class="ctrl danger">Leave</button>
+          </div>
+        </div>
+        <div class="card">
+          <h3>Participants (12)</h3>
+          <p>Arjun Mehta (Host) · Priya S. (muted) · Rohan K. · +9</p>
+          <h3>In-call chat</h3>
+          <p class="mono" style="font-size:13px">Rohan: can you rescreen the CVSS breakdown?</p>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script>
+document.querySelectorAll('.rail button[data-view]').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.rail button').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+    document.getElementById(btn.dataset.view).classList.add('active');
+  });
+});
+function toggleTheme(){
+  const root=document.documentElement;
+  root.setAttribute('data-theme', root.getAttribute('data-theme')==='light'?'dark':'light');
+}
+</script>
+</body>
+</html>
