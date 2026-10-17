@@ -16,7 +16,7 @@ const createSchema = z.object({
   title: z.string().min(1).max(200),
   type: z.enum(['one_to_one', 'group']),
   scheduledAt: z.string().datetime().optional(),
-  maxParticipants: z.number().int().positive().optional(),
+  maxParticipants: z.number().int().positive().max(50).optional(),
   recordingEnabled: z.boolean().optional(),
 });
 
