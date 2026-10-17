@@ -11,10 +11,13 @@ export async function createMeeting(subject: Subject, data: { title: string; typ
   if (!can(subject, 'meeting.host')) throw errors.forbidden('Hosting a live room requires the Gold plan or an instructor role.');
 
   const roomCode = generateRoomCode();
+  // One-to-one rooms cannot be expanded into group rooms by a client payload.
+  // Bound group rooms too so a crafted request cannot set unreasonable capacity.
+  const maxParticipants = data.type === 'one_to_one' ? 2 : Math.min(data.maxParticipants ?? 50, 50);
   const { rows } = await pool.query(
     `INSERT INTO meetings (host_id, title, room_code, type, max_participants, recording_enabled, scheduled_at)
      VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-    [subject.id, data.title, roomCode, data.type, data.maxParticipants ?? 50, !!data.recordingEnabled, data.scheduledAt ?? null]
+    [subject.id, data.title, roomCode, data.type, maxParticipants, !!data.recordingEnabled, data.scheduledAt ?? null]
   );
   await pool.query(
     `INSERT INTO meeting_participants (meeting_id, user_id, participant_role) VALUES ($1, $2, 'host')`,
@@ -48,14 +51,31 @@ export async function joinMeeting(subject: Subject, roomCode: string) {
       if (existingRows[0].mic_state === 'removed') {
         throw new AppError(403, 'removed_by_host', 'The host removed you from this meeting.');
       }
-      // A still-active participant can refresh/reconnect in a locked room. Someone
-      // who has actually left (left_at set after the disconnect grace) is a new
-      // join for lock purposes and must wait for the host to unlock the room.
-      if (meeting.is_locked && existingRows[0].left_at) {
+
+      const hadLeft = Boolean(existingRows[0].left_at);
+      // A still-active participant may reconnect to a locked room. A participant
+      // whose leave was recorded is treated as a new join for lock and capacity.
+      if (hadLeft && meeting.is_locked) {
         throw new AppError(403, 'meeting_locked', 'This meeting is locked to new participants.');
       }
-      // Duplicate join (refresh, double-click, reconnect) — update joined_at, don't error or double-count capacity.
-      await client.query(`UPDATE meeting_participants SET joined_at = now(), left_at = NULL WHERE id = $1`, [existingRows[0].id]);
+      if (hadLeft) {
+        const { rows: countRows } = await client.query(
+          `SELECT COUNT(*) AS count FROM meeting_participants
+           WHERE meeting_id = $1 AND left_at IS NULL AND mic_state <> 'removed'`,
+          [meeting.id]
+        );
+        if (Number(countRows[0].count) >= meeting.max_participants) {
+          throw new AppError(409, 'meeting_full', 'This meeting has reached its participant limit.');
+        }
+      }
+
+      // Reuse the existing participant row, but only after lock/capacity checks
+      // when this is a genuine re-entry after leaving the room.
+      await client.query(
+        `UPDATE meeting_participants SET joined_at = now(), left_at = NULL
+         WHERE id = $1 AND mic_state <> 'removed'`,
+        [existingRows[0].id]
+      );
       return { meeting, rejoined: true };
     }
 
@@ -83,7 +103,8 @@ export async function joinMeeting(subject: Subject, roomCode: string) {
 
 export async function getMeetingSnapshot(meetingId: string, userId: string) {
   const { rows: accessRows } = await pool.query(
-    `SELECT 1 FROM meeting_participants WHERE meeting_id = $1 AND user_id = $2`,
+    `SELECT 1 FROM meeting_participants
+     WHERE meeting_id = $1 AND user_id = $2 AND mic_state <> 'removed'`,
     [meetingId, userId]
   );
   if (!accessRows[0]) throw errors.forbidden('You are not a participant in this meeting.');

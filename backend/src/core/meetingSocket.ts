@@ -45,6 +45,19 @@ export function registerMeetingHandlers(io: Server) {
     const subject = socket.data.subject!;
 
     const isActiveMember = (meetingId: string) => getTargetSocketId(meetingId, subject.id) === socket.id;
+    const hasActiveMembership = async (meetingId: unknown, userId: unknown = subject.id) => {
+      if (typeof meetingId !== 'string' || !meetingId || meetingId.length > 128 ||
+          typeof userId !== 'string' || !userId || userId.length > 128) return false;
+      const { rows } = await pool.query(
+        `SELECT 1 FROM meeting_participants mp
+         JOIN meetings m ON m.id = mp.meeting_id
+         WHERE mp.meeting_id = $1 AND mp.user_id = $2
+           AND mp.left_at IS NULL AND mp.mic_state <> 'removed'
+           AND m.status <> 'ended'`,
+        [meetingId, userId]
+      );
+      return Boolean(rows[0]);
+    };
     const sendHostError = (err: unknown) => {
       const message = err instanceof Error ? err.message : 'That meeting action could not be completed.';
       socket.emit('meeting:error', { message });
@@ -53,7 +66,7 @@ export function registerMeetingHandlers(io: Server) {
     socket.on('meeting:join', async ({ meetingId }: { meetingId: string }) => {
       try {
         const { rows } = await pool.query(
-          `SELECT mp.mic_state, mp.left_at, m.status AS meeting_status, m.is_locked
+          `SELECT mp.mic_state, mp.left_at, m.status AS meeting_status, m.is_locked, m.room_code
            FROM meeting_participants mp JOIN meetings m ON m.id = mp.meeting_id
            WHERE mp.meeting_id = $1 AND mp.user_id = $2`,
           [meetingId, subject.id]
@@ -65,13 +78,14 @@ export function registerMeetingHandlers(io: Server) {
         if (participant.meeting_status === 'ended') {
           return socket.emit('meeting:ended');
         }
-        if (participant.is_locked && participant.left_at) {
-          return socket.emit('meeting:error', { message: 'This meeting is locked to new participants.' });
-        }
-        // A socket reconnect may arrive after a temporary network interruption.
-        // The HTTP join endpoint already enforced lock and capacity rules for this account.
+        // A reconnect after the disconnect grace must go through the same
+        // transactional lock/capacity checks as an HTTP join. Never clear left_at
+        // directly from a socket event.
         if (participant.left_at) {
-          await pool.query(`UPDATE meeting_participants SET joined_at = now(), left_at = NULL WHERE meeting_id = $1 AND user_id = $2 AND mic_state <> 'removed'`, [meetingId, subject.id]);
+          await meetingsService.joinMeeting(subject, participant.room_code);
+        }
+        if (!(await hasActiveMembership(meetingId, subject.id))) {
+          return socket.emit('meeting:error', { message: 'You are not an active participant in this meeting. Rejoin through the room link.' });
         }
 
         // Keep one signalling socket per account per meeting. Without this, an old
@@ -91,26 +105,36 @@ export function registerMeetingHandlers(io: Server) {
     });
 
     // Signalling is accepted only after this socket has authenticated into the room.
-    socket.on('meeting:offer', ({ meetingId, toUserId, sdp }) => {
-      if (!isActiveMember(meetingId)) return;
+    socket.on('meeting:offer', async ({ meetingId, toUserId, sdp }) => {
+      if (!isActiveMember(meetingId) || !(await hasActiveMembership(meetingId))) return;
+      if (typeof toUserId !== 'string' || !toUserId || !sdp || typeof sdp !== 'object') return;
       const targetSocketId = getTargetSocketId(meetingId, toUserId);
-      if (targetSocketId) io.to(targetSocketId).emit('meeting:offer', { fromUserId: subject.id, sdp });
+      if (targetSocketId && await hasActiveMembership(meetingId, toUserId)) {
+        io.to(targetSocketId).emit('meeting:offer', { fromUserId: subject.id, sdp });
+      }
     });
 
-    socket.on('meeting:answer', ({ meetingId, toUserId, sdp }) => {
-      if (!isActiveMember(meetingId)) return;
+    socket.on('meeting:answer', async ({ meetingId, toUserId, sdp }) => {
+      if (!isActiveMember(meetingId) || !(await hasActiveMembership(meetingId))) return;
+      if (typeof toUserId !== 'string' || !toUserId || !sdp || typeof sdp !== 'object') return;
       const targetSocketId = getTargetSocketId(meetingId, toUserId);
-      if (targetSocketId) io.to(targetSocketId).emit('meeting:answer', { fromUserId: subject.id, sdp });
+      if (targetSocketId && await hasActiveMembership(meetingId, toUserId)) {
+        io.to(targetSocketId).emit('meeting:answer', { fromUserId: subject.id, sdp });
+      }
     });
 
-    socket.on('meeting:ice-candidate', ({ meetingId, toUserId, candidate }) => {
-      if (!isActiveMember(meetingId)) return;
+    socket.on('meeting:ice-candidate', async ({ meetingId, toUserId, candidate }) => {
+      if (!isActiveMember(meetingId) || !(await hasActiveMembership(meetingId))) return;
+      if (typeof toUserId !== 'string' || !toUserId || !candidate || typeof candidate !== 'object') return;
       const targetSocketId = getTargetSocketId(meetingId, toUserId);
-      if (targetSocketId) io.to(targetSocketId).emit('meeting:ice-candidate', { fromUserId: subject.id, candidate });
+      if (targetSocketId && await hasActiveMembership(meetingId, toUserId)) {
+        io.to(targetSocketId).emit('meeting:ice-candidate', { fromUserId: subject.id, candidate });
+      }
     });
 
     socket.on('meeting:chat', async ({ meetingId, content }: { meetingId: string; content: string }) => {
-      if (!isActiveMember(meetingId) || typeof content !== 'string' || !content.trim()) return;
+      if (!isActiveMember(meetingId) || !(await hasActiveMembership(meetingId)) ||
+          typeof content !== 'string' || !content.trim()) return;
       try {
         const message = content.trim().slice(0, 2000);
         const { rows } = await pool.query(
@@ -125,19 +149,32 @@ export function registerMeetingHandlers(io: Server) {
       }
     });
 
-    socket.on('meeting:raise-hand', ({ meetingId, raised }: { meetingId: string; raised?: boolean }) => {
-      if (!isActiveMember(meetingId)) return;
+    socket.on('meeting:raise-hand', async ({ meetingId, raised }: { meetingId: string; raised?: boolean }) => {
+      if (!isActiveMember(meetingId) || !(await hasActiveMembership(meetingId))) return;
+      if (raised !== undefined && typeof raised !== 'boolean') return;
       io.to(meetingId).emit('meeting:hand-raised', { userId: subject.id, raised: raised !== false });
     });
 
     socket.on('meeting:media-state', async ({ meetingId, micState, cameraState }) => {
-      if (!isActiveMember(meetingId)) return;
+      if (!isActiveMember(meetingId) || !(await hasActiveMembership(meetingId))) return;
+      if (micState !== undefined && !['on', 'off'].includes(micState)) return;
+      if (cameraState !== undefined && !['on', 'off', 'screen'].includes(cameraState)) return;
       try {
+        if (cameraState === 'screen') {
+          const { rows: permissionRows } = await pool.query(
+            `SELECT COALESCE(can_share_screen, true) AS can_share_screen
+             FROM meeting_permissions WHERE meeting_id = $1 AND user_id = $2`,
+            [meetingId, subject.id]
+          );
+          if (permissionRows[0]?.can_share_screen === false) {
+            return socket.emit('meeting:error', { message: 'Screen sharing is disabled for you in this room.' });
+          }
+        }
         const { rows } = await pool.query(
           `UPDATE meeting_participants
            SET mic_state = CASE WHEN is_muted_by_host THEN 'off' ELSE COALESCE($3, mic_state) END,
                camera_state = COALESCE($4, camera_state)
-           WHERE meeting_id = $1 AND user_id = $2 AND mic_state <> 'removed'
+           WHERE meeting_id = $1 AND user_id = $2 AND left_at IS NULL AND mic_state <> 'removed'
            RETURNING mic_state, camera_state, is_muted_by_host`,
           [meetingId, subject.id, micState ?? null, cameraState ?? null]
         );
@@ -149,7 +186,7 @@ export function registerMeetingHandlers(io: Server) {
 
     socket.on('host-mute', async ({ meetingId, targetUserId }: { meetingId: string; targetUserId: string }) => {
       try {
-        if (!isActiveMember(meetingId)) throw new Error('You are not an active participant in this room.');
+        if (!isActiveMember(meetingId) || !(await hasActiveMembership(meetingId))) throw new Error('You are not an active participant in this room.');
         const state = await meetingsService.muteParticipant(meetingId, subject.id, targetUserId);
         const targetSocketId = getTargetSocketId(meetingId, targetUserId);
         if (targetSocketId && state.is_muted_by_host) io.to(targetSocketId).emit('meeting:force-mute', { byUserId: subject.id });
@@ -160,7 +197,7 @@ export function registerMeetingHandlers(io: Server) {
 
     socket.on('host-remove', async ({ meetingId, targetUserId }: { meetingId: string; targetUserId: string }) => {
       try {
-        if (!isActiveMember(meetingId)) throw new Error('You are not an active participant in this room.');
+        if (!isActiveMember(meetingId) || !(await hasActiveMembership(meetingId))) throw new Error('You are not an active participant in this room.');
         await meetingsService.removeParticipant(meetingId, subject.id, targetUserId);
         const targetSocketId = getTargetSocketId(meetingId, targetUserId);
         if (targetSocketId) {
@@ -174,7 +211,7 @@ export function registerMeetingHandlers(io: Server) {
 
     socket.on('host-lock', async ({ meetingId, locked }: { meetingId: string; locked: boolean }) => {
       try {
-        if (!isActiveMember(meetingId)) throw new Error('You are not an active participant in this room.');
+        if (!isActiveMember(meetingId) || !(await hasActiveMembership(meetingId))) throw new Error('You are not an active participant in this room.');
         await meetingsService.lockMeeting(meetingId, subject.id, !!locked);
         io.to(meetingId).emit('meeting:lock-state', { locked: !!locked });
       } catch (err) { sendHostError(err); }
@@ -182,7 +219,7 @@ export function registerMeetingHandlers(io: Server) {
 
     socket.on('host-cohost', async ({ meetingId, targetUserId, grant }: { meetingId: string; targetUserId: string; grant: boolean }) => {
       try {
-        if (!isActiveMember(meetingId)) throw new Error('You are not an active participant in this room.');
+        if (!isActiveMember(meetingId) || !(await hasActiveMembership(meetingId))) throw new Error('You are not an active participant in this room.');
         await meetingsService.setCoHost(meetingId, subject.id, targetUserId, !!grant);
         io.to(meetingId).emit('meeting:roles-changed', { userId: targetUserId, role: grant ? 'co_host' : 'participant' });
       } catch (err) { sendHostError(err); }
@@ -190,7 +227,7 @@ export function registerMeetingHandlers(io: Server) {
 
     socket.on('host-permissions', async ({ meetingId, targetUserId, canShareScreen, canChat }: { meetingId: string; targetUserId: string; canShareScreen?: boolean; canChat?: boolean }) => {
       try {
-        if (!isActiveMember(meetingId)) throw new Error('You are not an active participant in this room.');
+        if (!isActiveMember(meetingId) || !(await hasActiveMembership(meetingId))) throw new Error('You are not an active participant in this room.');
         const permissions = await meetingsService.setParticipantPermissions(meetingId, subject.id, targetUserId, { canShareScreen, canChat });
         io.to(meetingId).emit('meeting:permissions-changed', { userId: targetUserId, ...permissions });
       } catch (err) { sendHostError(err); }
@@ -198,7 +235,7 @@ export function registerMeetingHandlers(io: Server) {
 
     socket.on('host-record', async ({ meetingId, consentConfirmed }: { meetingId: string; consentConfirmed: boolean }) => {
       try {
-        if (!isActiveMember(meetingId)) throw new Error('You are not an active participant in this room.');
+        if (!isActiveMember(meetingId) || !(await hasActiveMembership(meetingId))) throw new Error('You are not an active participant in this room.');
         await meetingsService.startRecording(meetingId, subject.id, !!consentConfirmed);
         io.to(meetingId).emit('meeting:recording', { active: true });
       } catch (err) { sendHostError(err); }
@@ -206,7 +243,7 @@ export function registerMeetingHandlers(io: Server) {
 
     socket.on('host-end', async ({ meetingId }: { meetingId: string }) => {
       try {
-        if (!isActiveMember(meetingId)) throw new Error('You are not an active participant in this room.');
+        if (!isActiveMember(meetingId) || !(await hasActiveMembership(meetingId))) throw new Error('You are not an active participant in this room.');
         await meetingsService.endMeeting(meetingId, subject.id);
         io.to(meetingId).emit('meeting:ended');
         for (const [userId, socketId] of meetingRooms.get(meetingId) ?? []) {
