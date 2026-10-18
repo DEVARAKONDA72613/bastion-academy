@@ -23,7 +23,7 @@ export default function PricingPage() {
     try {
       const order = await api.checkout(planCode);
       if (!window.Razorpay) {
-        setMessage('Payment widget still loading — try again in a second.');
+        setMessage('Payment widget still loading â€” try again in a second.');
         return;
       }
       const rzp = new window.Razorpay({
@@ -33,8 +33,33 @@ export default function PricingPage() {
         order_id: order.orderId,
         name: 'Bastion Academy',
         description: `Upgrade to ${planCode}`,
-        handler: function () {
-          setMessage('Payment submitted — your plan updates automatically once the webhook verifies it (usually within seconds). Refresh this page shortly.');
+        handler: async function () {
+          // Checkout success is not treated as authority to activate a plan. Poll the
+          // server, which updates membership only after the signed Razorpay webhook.
+          setMessage('Payment submitted. Waiting for secure confirmation from the serverâ€¦');
+          const maxAttempts = 10;
+          for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+            try {
+              const current = await api.getMySubscription();
+              if (current?.code === planCode && current?.status === 'active') {
+                setSub(current);
+                setMessage(`Payment verified. Your ${planCode} plan is now active.`);
+                return;
+              }
+            } catch {
+              // Keep polling briefly if the API is transiently unavailable.
+            }
+            if (attempt < maxAttempts - 1) {
+              await new Promise((resolve) => window.setTimeout(resolve, 2000));
+            }
+          }
+          try {
+            const current = await api.getMySubscription();
+            if (current) setSub(current);
+          } catch {
+            // The server remains the source of truth; show a pending state below.
+          }
+          setMessage('Payment was submitted, but plan activation is still pending verification. Do not pay again. Check Billing & receipts shortly.');
         },
         theme: { color: '#3fbf8f' },
       });
@@ -50,7 +75,7 @@ export default function PricingPage() {
       <h1 className="text-2xl font-semibold mb-1">Plans</h1>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <p className="text-text-dim">Your current plan: <span className="font-mono text-primary">{sub?.code ?? 'FREE'}</span></p>
-        <Link href="/billing" className="rounded border border-border px-3 py-2 text-xs hover:border-primary">Billing & receipts ↗</Link>
+        <Link href="/billing" className="rounded border border-border px-3 py-2 text-xs hover:border-primary">Billing & receipts â†—</Link>
       </div>
       {message && <p className="text-sm text-accent mb-4 max-w-md">{message}</p>}
       <div className="grid md:grid-cols-4 gap-4">
@@ -58,7 +83,7 @@ export default function PricingPage() {
           <div key={p.code} className="bg-elevated border border-border rounded p-5 flex flex-col">
             <h3 className="font-semibold mb-1">{p.name}</h3>
             <p className="font-mono text-2xl mb-3">
-              ₹{p.price_inr}
+              â‚¹{p.price_inr}
               <span className="text-text-dim text-xs">/mo</span>
             </p>
             <ul className="text-text-dim text-xs flex flex-col gap-1 mb-4 flex-1">
