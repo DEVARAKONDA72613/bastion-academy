@@ -29,6 +29,24 @@ export async function requireAuth(req: Request, _res: Response, next: NextFuncti
   next();
 }
 
+export async function optionalAuth(req: Request, _res: Response, next: NextFunction) {
+  const token = req.cookies?.[SESSION_COOKIE_NAME];
+  if (!token) return next();
+
+  try {
+    const session = await findSessionByToken(token);
+    if (!session) return next();
+
+    const subject = await loadSubject(session.user_id);
+    if (subject) {
+      req.subject = subject;
+      req.sessionId = session.id;
+    }
+    return next();
+  } catch (error) {
+    return next(error);
+  }
+}
 export function requirePlan(minPlan: string) {
   return (req: Request, _res: Response, next: NextFunction) => {
     if (!req.subject) return next(errors.unauthorized());

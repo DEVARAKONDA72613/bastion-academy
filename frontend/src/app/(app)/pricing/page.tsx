@@ -23,7 +23,7 @@ export default function PricingPage() {
     try {
       const order = await api.checkout(planCode);
       if (!window.Razorpay) {
-        setMessage('Payment widget still loading â€” try again in a second.');
+        setMessage('Payment widget is still loading. Please try again in a second.');
         return;
       }
       const rzp = new window.Razorpay({
@@ -36,7 +36,7 @@ export default function PricingPage() {
         handler: async function () {
           // Checkout success is not treated as authority to activate a plan. Poll the
           // server, which updates membership only after the signed Razorpay webhook.
-          setMessage('Payment submitted. Waiting for secure confirmation from the serverâ€¦');
+          setMessage('Payment submitted. Waiting for secure confirmation from the server...');
           const maxAttempts = 10;
           for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
             try {
@@ -75,7 +75,7 @@ export default function PricingPage() {
       <h1 className="text-2xl font-semibold mb-1">Plans</h1>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <p className="text-text-dim">Your current plan: <span className="font-mono text-primary">{sub?.code ?? 'FREE'}</span></p>
-        <Link href="/billing" className="rounded border border-border px-3 py-2 text-xs hover:border-primary">Billing & receipts â†—</Link>
+        <Link href="/billing" className="rounded border border-border px-3 py-2 text-xs hover:border-primary">Billing & receipts</Link>
       </div>
       {message && <p className="text-sm text-accent mb-4 max-w-md">{message}</p>}
       <div className="grid md:grid-cols-4 gap-4">
@@ -83,7 +83,7 @@ export default function PricingPage() {
           <div key={p.code} className="bg-elevated border border-border rounded p-5 flex flex-col">
             <h3 className="font-semibold mb-1">{p.name}</h3>
             <p className="font-mono text-2xl mb-3">
-              â‚¹{p.price_inr}
+              {'\u20B9'}{Number(p.price_inr ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               <span className="text-text-dim text-xs">/mo</span>
             </p>
             <ul className="text-text-dim text-xs flex flex-col gap-1 mb-4 flex-1">

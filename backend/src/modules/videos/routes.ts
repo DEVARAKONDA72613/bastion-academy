@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { requireAuth, requireRole } from '../../middleware/auth.js';
+import { optionalAuth, requireAuth, requireRole } from '../../middleware/auth.js';
 import { AppError } from '../../core/errors.js';
 import * as videosService from './service.js';
 
@@ -16,7 +16,7 @@ videosRouter.get('/courses', async (_req, res, next) => {
   try { res.json(await videosService.listCourses()); } catch (err) { next(err); }
 });
 
-videosRouter.get('/courses/:slug', async (req, res, next) => {
+videosRouter.get('/courses/:slug', optionalAuth, async (req, res, next) => {
   try { res.json(await videosService.getCourseBySlug(req.params.slug, req.subject)); } catch (err) { next(err); }
 });
 

@@ -56,7 +56,7 @@ export default function CoursesPage() {
       </header>
 
       {loading ? (
-        <p role="status" className="py-8 text-sm text-text-dim">Loading coursesâ€¦</p>
+        <p role="status" className="py-8 text-sm text-text-dim">Loading courses...</p>
       ) : error ? (
         <div role="alert" className="max-w-xl rounded-lg border border-border bg-elevated p-5">
           <h2 className="text-lg font-semibold">Unable to load courses</h2>
@@ -93,7 +93,7 @@ export default function CoursesPage() {
                 <p className="mt-2 line-clamp-3 text-sm leading-6 text-text-dim">{course.description || 'Explore this course and its lessons.'}</p>
                 <div className="mt-auto flex items-center justify-between gap-3 pt-5 text-xs text-text-dim">
                   <span className="truncate">{course.instructor_name ? `By ${course.instructor_name}` : 'Bastion Academy'}</span>
-                  <span className="shrink-0 text-primary">View course â†’</span>
+                  <span className="shrink-0 text-primary">View course</span>
                 </div>
               </div>
             </Link>

@@ -77,7 +77,7 @@ export default function LiveLandingPage() {
   }
 
   if (loading) {
-    return <p className="text-text-dim" role="status">Loading Live Roomsâ€¦</p>;
+    return <p className="text-text-dim" role="status">Loading live rooms...</p>;
   }
   if (!user) return null;
 
@@ -148,7 +148,7 @@ export default function LiveLandingPage() {
               disabled={creating}
               className="w-full rounded bg-primary px-4 py-2.5 text-sm font-semibold text-bg disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {creating ? 'Creatingâ€¦' : 'Create meeting'}
+              {creating ? 'Creating...' : 'Create meeting'}
             </button>
           </form>
         </section>
@@ -161,7 +161,7 @@ export default function LiveLandingPage() {
             <div key={meeting.id} className="flex flex-wrap items-center justify-between gap-3 rounded border border-border bg-elevated p-3">
               <div className="min-w-0">
                 <p className="break-words text-sm font-medium">{meeting.title}</p>
-                <p className="mt-1 text-xs text-text-dim">{meeting.status} Â· {meeting.participant_role}</p>
+                <p className="mt-1 text-xs text-text-dim">{meeting.status} | {meeting.participant_role}</p>
               </div>
               {meeting.room_code && (
                 <button

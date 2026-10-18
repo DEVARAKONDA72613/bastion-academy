@@ -39,7 +39,7 @@ export async function getCourseBySlug(slug: string, subject?: Subject) {
   // in getVideoStreamUrl() regardless of what this returns.
   const videosWithLockState = videos.map((v) => ({
     ...v,
-    locked: subject ? !can(subject, 'video.watch', { requiredPlan: v.required_plan_code }) : v.is_premium,
+    locked: subject ? !can(subject, 'video.watch', { requiredPlan: v.required_plan_code }) : (v.is_premium || v.required_plan_code !== 'FREE'),
   }));
 
   return { ...course, videos: videosWithLockState };
