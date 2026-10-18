@@ -32,6 +32,14 @@ export const api = {
   login: (email: string, password: string) =>
     request<{ requiresOtp: boolean; userId: string; theme?: 'light' | 'dark' }>('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
 
+  googleLogin: (credential: string) =>
+    request<{ requiresOtp: boolean; userId: string; email?: string; theme?: 'light' | 'dark' }>('/auth/google', { method: 'POST', body: JSON.stringify({ credential }) }),
+
+  forgotPassword: (email: string) =>
+    request<{ message: string }>('/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email }) }),
+
+  resetPassword: (email: string, otp: string, newPassword: string) =>
+    request<{ message: string }>('/auth/reset-password', { method: 'POST', body: JSON.stringify({ email, otp, newPassword }) }),
   verifyOtp: (userId: string, otp: string, purpose: 'registration' | 'login', trustDevice?: boolean) =>
     request<{ verified: boolean; theme?: 'light' | 'dark' }>('/auth/verify-otp', { method: 'POST', body: JSON.stringify({ userId, otp, purpose, trustDevice }) }),
 

@@ -53,6 +53,21 @@ authRouter.post('/login', async (req, res, next) => {
   }
 });
 
+const googleLoginSchema = z.object({ credential: z.string().min(100).max(10000) });
+
+authRouter.post('/google', otpLimiter, async (req, res, next) => {
+  try {
+    const body = googleLoginSchema.parse(req.body);
+    const result = await authService.googleLogin(body.credential, req);
+    if (result.requiresOtp) {
+      return res.json({ requiresOtp: true, userId: result.userId, email: result.email });
+    }
+    res.cookie(SESSION_COOKIE_NAME, result.session.token, sessionCookieOptions);
+    res.json({ requiresOtp: false, userId: result.userId, email: result.email, theme: result.theme });
+  } catch (err) {
+    next(err instanceof z.ZodError ? handleZodError(err) : err);
+  }
+});
 const verifyOtpSchema = z.object({
   userId: z.string().uuid(),
   otp: z.string().length(6),

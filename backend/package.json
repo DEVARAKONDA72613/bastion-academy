@@ -9,7 +9,7 @@
     "start": "node dist/server.js",
     "migrate": "node scripts/migrate.js",
     "seed": "node scripts/seed.js",
-    "test": "tsx --test src/tests/permissions.test.ts src/tests/moderation.test.ts src/tests/theme.test.ts",
+    "test": "tsx --test src/tests/permissions.test.ts src/tests/moderation.test.ts src/tests/theme.test.ts src/tests/otp.test.ts src/tests/email.test.ts",
     "test:quota-race": "tsx scripts/test-quota-race.ts"
   },
   "dependencies": {
@@ -24,7 +24,8 @@
     "dotenv": "^16.4.5",
     "cors": "^2.8.5",
     "express-rate-limit": "^7.4.0",
-    "helmet": "^7.1.0"
+    "helmet": "^7.1.0",
+    "nodemailer": "^10.1.2"
   },
   "devDependencies": {
     "typescript": "^5.5.4",

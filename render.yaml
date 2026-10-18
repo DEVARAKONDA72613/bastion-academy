@@ -11,7 +11,7 @@ services:
     region: singapore
     branch: main
     rootDir: backend
-    buildCommand: npm ci && npm run build
+    buildCommand: npm ci --include=dev && npm run build
     startCommand: npm start
     healthCheckPath: /health
     autoDeployTrigger: commit
@@ -35,7 +35,13 @@ services:
       - key: RAZORPAY_WEBHOOK_SECRET
         sync: false
       - key: EMAIL_PROVIDER
-        value: mock
+        value: gmail
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GMAIL_USER
+        sync: false
+      - key: GMAIL_APP_PASSWORD
+        sync: false
       - key: SMS_PROVIDER
         value: mock
       - key: TRANSLATION_PROVIDER
