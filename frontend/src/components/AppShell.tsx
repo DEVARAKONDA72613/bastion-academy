@@ -72,6 +72,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </header>
         <main className="mx-auto w-full max-w-6xl p-4 md:p-8">{children}</main>
+        <footer className="mx-auto flex w-full max-w-6xl flex-wrap gap-x-5 gap-y-2 px-4 pb-6 text-xs text-text-dim md:px-8">
+          <Link href="/privacy" className="hover:text-primary hover:underline">Privacy policy</Link>
+          <Link href="/terms" className="hover:text-primary hover:underline">Terms and Conditions</Link>
+        </footer>
       </div>
     </div>
   );

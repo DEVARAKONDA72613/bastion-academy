@@ -3,8 +3,27 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Bastion Academy',
-  description: 'Where defenders are trained, not just certified.',
+  metadataBase: new URL('https://bastion-academy.vercel.app'),
+  title: {
+    default: 'Bastion Academy | Cybersecurity Learning',
+    template: '%s | Bastion Academy',
+  },
+  description: 'Train practical cybersecurity skills with structured lessons, live learning rooms, and subscription-based learning paths.',
+  applicationName: 'Bastion Academy',
+  openGraph: {
+    type: 'website',
+    url: 'https://bastion-academy.vercel.app',
+    siteName: 'Bastion Academy',
+    title: 'Bastion Academy | Cybersecurity Learning',
+    description: 'Train practical cybersecurity skills with structured lessons, live learning rooms, and subscription-based learning paths.',
+    images: [{ url: '/opengraph-image', width: 1200, height: 630, alt: 'Bastion Academy cybersecurity learning' }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Bastion Academy | Cybersecurity Learning',
+    description: 'Train practical cybersecurity skills with structured lessons, live learning rooms, and subscription-based learning paths.',
+    images: ['/twitter-image'],
+  },
 };
 
 const themeInitScript = `
