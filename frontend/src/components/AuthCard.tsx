@@ -2,7 +2,7 @@ import Link from 'next/link';
 
 export function AuthCard({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-bg px-4">
+    <main className="min-h-screen flex items-center justify-center bg-bg px-4">
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
           <div className="inline-flex h-10 w-10 items-center justify-center rounded bg-primary text-bg font-bold mb-4">B</div>
@@ -15,7 +15,7 @@ export function AuthCard({ title, subtitle, children }: { title: string; subtitl
           <Link href="/terms" className="hover:text-primary underline-offset-4 hover:underline">Terms</Link>
         </footer>
       </div>
-    </div>
+    </main>
   );
 }
 
